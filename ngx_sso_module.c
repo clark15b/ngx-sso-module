@@ -277,15 +277,22 @@ static ngx_int_t ngx_sso_find_exclude(ngx_http_request_t* r,ngx_array_t* lst)
 {
     ngx_str_t name,ext=ngx_null_string,*s=lst->elts;
 
-    ngx_uint_t i;
+    ngx_uint_t i; int has_ext=0;
 
-    if(ngx_sso_split_last_dot(&r->uri,&name,&ext)!=NGX_OK)
-        return NGX_ERROR;
+    if(ngx_sso_split_last_dot(&r->uri,&name,&ext)==NGX_OK)
+        has_ext=1;
 
     for(i=0;i<lst->nelts;++i)   // для оптимизации желательно применить хэш-таблицу, заполняемую при разборе конфига
     {
-        if(ext.len==s[i].len && !ngx_strncmp(ext.data,s[i].data,ext.len))
-            return NGX_OK;
+        if(s[i].len>0 && s[i].data[0]=='/')
+        {
+            if(!ngx_strncmp(r->uri.data,s[i].data,s[i].len))
+                return NGX_OK;
+        }else
+        {
+            if(has_ext==1 && ext.len==s[i].len && !ngx_strncmp(ext.data,s[i].data,ext.len))
+                return NGX_OK;
+        }
     }
 
     return NGX_ERROR;
