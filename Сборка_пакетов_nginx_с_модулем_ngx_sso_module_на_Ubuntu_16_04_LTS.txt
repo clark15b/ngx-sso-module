@@ -1,0 +1,89 @@
+Сборка пакетов nginx с модулем ngx-sso-module на Ubuntu 16.04 LTS.
+
+1. Раскоментировать строки начинающиеся с deb-src в файле /etc/apt/sources.list
+2. Обновить информацию о репозиториях
+sudo apt update
+3. Установить пакеты для сборки nginx-core
+sudo apt-get build-dep nginx-core
+4. Загрузить исходный код nginx
+cd ~
+gpg --keyserver keyserver.ubuntu.com --recv-keys A744BE93
+apt-get source nginx
+5. Загрузить исходный код модуля
+cd ~/nginx-1.10.3/debian/modules
+git clone https://github.com/clark15b/ngx-sso-module.git
+6. Настроить сборку нужного варианта, в примере приводится вариант nginx-core, с новым модулем в файле ~/nginx-1.10.3/debian/rules, добавив строку:
+--add-module=$(MODULESDIR)/ngx-sso-module
+Если добавляется строка в конец, то в конец предыдущей строки не забыть добавить символ переноса "\".
+Было:
+core_configure_flags := \
+                        $(common_configure_flags) \
+                        --with-http_addition_module \
+                        --with-http_dav_module \
+                        --with-http_geoip_module \
+                        --with-http_gunzip_module \
+                        --with-http_gzip_static_module \
+                        --with-http_image_filter_module \
+                        --with-http_v2_module \
+                        --with-http_sub_module \
+                        --with-http_xslt_module \
+                        --with-stream \
+                        --with-stream_ssl_module \
+                        --with-mail \
+                        --with-mail_ssl_module \
+                        --with-threads
+Должно стать:
+core_configure_flags := \
+                        $(common_configure_flags) \
+                        --with-http_addition_module \
+                        --with-http_dav_module \
+                        --with-http_geoip_module \
+                        --with-http_gunzip_module \
+                        --with-http_gzip_static_module \
+                        --with-http_image_filter_module \
+                        --with-http_v2_module \
+                        --with-http_sub_module \
+                        --with-http_xslt_module \
+                        --with-stream \
+                        --with-stream_ssl_module \
+                        --with-mail \
+                        --with-mail_ssl_module \
+                        --with-threads \
+						--add-module=$(MODULESDIR)/ngx-sso-module
+7. Выполнить сборка пакетов
+cd ~/nginx-1.10.3/
+sudo dpkg-buildpackage -uc -b
+
+В домашнем каталоге пользователя появятся собранные пакеты:
+nginx-common_1.10.3-0ubuntu0.16.04.5_all.deb
+nginx-core_1.10.3-0ubuntu0.16.04.5_amd64.deb
+nginx-core-dbg_1.10.3-0ubuntu0.16.04.5_amd64.deb
+nginx-doc_1.10.3-0ubuntu0.16.04.5_all.deb
+nginx-extras_1.10.3-0ubuntu0.16.04.5_amd64.deb
+nginx-extras-dbg_1.10.3-0ubuntu0.16.04.5_amd64.deb
+nginx-full_1.10.3-0ubuntu0.16.04.5_amd64.deb
+nginx-full-dbg_1.10.3-0ubuntu0.16.04.5_amd64.deb
+nginx-light_1.10.3-0ubuntu0.16.04.5_amd64.deb
+nginx-light-dbg_1.10.3-0ubuntu0.16.04.5_amd64.deb
+
+8. Установить нужный вариант, в примере приводится вариант nginx-core, с новым модулем в файле ~/nginx-1.10.3/debian/rules:
+sudo dpkg --install nginx-core_1.10.3-0ubuntu0.16.04.5_amd64.deb nginx-common_1.10.3-0ubuntu0.16.04.5_all.deb
+
+9. Проверить опции сборки nginx командой:
+nginx -V
+
+В выводе команды должна присутствовать опция "--add-module=/home/support/nginx-1.10.3/debian/modules/ngx-sso-module".
+
+10. Заблокировать обновление пакетов с помощью apt-get командой:
+sudo apt-mark hold nginx-core nginx-common
+
+Если в дальнейшем потребуется обновить пакет, то можно разблокировать пакеты командой:
+sudo apt-mark unhold nginx-core nginx-common
+
+--
+Спасибо http://www.geoffstratton.com/recompile-nginx-installed-apt
+
+
+
+
+
