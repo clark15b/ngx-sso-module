@@ -129,7 +129,7 @@ load_module modules/ngx_sso_module.so;
 
 **sso_exclude**
 
-Содержит список расширений файлов через пробел, на которые не распространяются проверки.
+Содержит список расширений файлов через пробел или путей, начинающихся с "/", на которые не распространяются проверки (для путей все что начинается с указанного значения и глубже).
 
 **sso_login_page**
 
@@ -154,7 +154,7 @@ load_module modules/ngx_sso_module.so;
         sso_url_name token;
         sso_login_page /login.html?return_url=${uri};
         sso_request_page /request.html?user=${name}&location=${uri};
-        sso_exclude jpeg css js;
+        sso_exclude jpeg css js /path/;
 
         ...
 
