@@ -31,6 +31,8 @@ typedef struct
 
     ngx_array_t* exclude;       // исключения
 
+    ngx_flag_t any;             // 1 - пропускает с любым валидным токеном не проверяя права
+
 }ngx_sso_loc_conf_t;
 
 static ngx_int_t ngx_sso_handler(ngx_http_request_t* r);
@@ -97,12 +99,15 @@ static void* ngx_sso_create_loc_conf(ngx_conf_t* cf)
 
     conf->exclude=NULL;
 
+    conf->any=NGX_CONF_UNSET;
+
     return conf;
 }
 
 // слияние узла конфигурации
 static char* ngx_sso_merge_loc_conf(ngx_conf_t* cf,void* parent,void* child)
 {
+    // почему-то не наследуются родительские значения если в конфиге явно объявить дочернюю локацию
     ngx_sso_loc_conf_t* prev=parent;
 
     ngx_sso_loc_conf_t* conf=child;
@@ -121,6 +126,8 @@ static char* ngx_sso_merge_loc_conf(ngx_conf_t* cf,void* parent,void* child)
 
     if(!conf->exclude)
         conf->exclude=prev->exclude;
+
+    ngx_conf_merge_value(conf->any,prev->any,0);
 
     return NGX_CONF_OK;
 }
@@ -189,6 +196,15 @@ static ngx_command_t ngx_sso_commands[]=
         ngx_sso_conf_set_str_array_slot,
         NGX_HTTP_LOC_CONF_OFFSET,
         0,
+        NULL
+    },
+    {
+        // режим когда достаточно любого валидного токена
+        ngx_string("sso_any"),
+        NGX_HTTP_MAIN_CONF|NGX_HTTP_SRV_CONF|NGX_HTTP_LOC_CONF|NGX_CONF_FLAG,
+        ngx_conf_set_flag_slot,
+        NGX_HTTP_LOC_CONF_OFFSET,
+        offsetof(ngx_sso_loc_conf_t,any),
         NULL
     },
     ngx_null_command
@@ -452,6 +468,16 @@ static ngx_int_t ngx_sso_handler(ngx_http_request_t* r)
     {
         if(ngx_http_parse_multi_header_lines(&r->headers_in.cookies,&cf->cookie_name,&token)!=NGX_OK)
             token.len=0;
+
+/*
+        // для версии nginx > 1.22.1 - не пробовал!
+        json_table_elt_t* el=json_table_find(r->headers_in.cookie,cf->cookie_name.data,cf->cookie_name.len,1);
+
+        if(!el)
+            token.len=0;
+        else
+            { token.data=el->value.data; token.len=el->value.len; }
+*/
     }
 
     // все предпроверки прошли, готовимся принимать решение на основе содержимого токена
@@ -473,7 +499,7 @@ static ngx_int_t ngx_sso_handler(ngx_http_request_t* r)
 
     if(retval==NGX_HTTP_MOVED_TEMPORARILY)              // токен отсутствует или не действителен, редирект на авторизацию
         location.len=json_url_eval(cf->login_page.data,cf->login_page.len,location.data,NGX_SSO_LOCATION_LEN,t);
-    else if(ngx_sso_validate_permissions(r,t)!=NGX_OK)  // проверка прав доступа к этому uri, редирект на запрос прав
+    else if(!cf->any && ngx_sso_validate_permissions(r,t)!=NGX_OK)  // проверка прав доступа к этому uri, редирект на запрос прав
     {
         location.len=json_url_eval(cf->request_page.data,cf->request_page.len,location.data,NGX_SSO_LOCATION_LEN,t);
 
