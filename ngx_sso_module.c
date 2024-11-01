@@ -466,18 +466,13 @@ static ngx_int_t ngx_sso_handler(ngx_http_request_t* r)
 
     if(token.len<1 && cf->cookie_name.len>0)    // поиск токена в cookie
     {
+#if (nginx_version>1022001)
+        // для версии nginx > 1.22.1
+        if(!ngx_http_parse_multi_header_lines(r,r->headers_in.cookie,&cf->cookie_name,&token))
+#else
         if(ngx_http_parse_multi_header_lines(&r->headers_in.cookies,&cf->cookie_name,&token)!=NGX_OK)
+#endif
             token.len=0;
-
-/*
-        // для версии nginx > 1.22.1 - не пробовал!
-        json_table_elt_t* el=json_table_find(r->headers_in.cookie,cf->cookie_name.data,cf->cookie_name.len,1);
-
-        if(!el)
-            token.len=0;
-        else
-            { token.data=el->value.data; token.len=el->value.len; }
-*/
     }
 
     // все предпроверки прошли, готовимся принимать решение на основе содержимого токена
